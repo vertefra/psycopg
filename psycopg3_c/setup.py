@@ -96,6 +96,21 @@ class psycopg3_build_ext(build_ext):
         else:
             self.distribution.ext_modules = ext_modules
 
+    def build_extension(self, ext):
+        try:
+            super().build_extension(ext)
+        except Exception:
+            if ext.name != "psycopg3_c.pg3dec":
+                raise
+            log.error(
+                f"""
+building the extension {ext.name} failed.
+
+This extension is optional, so the package has been built anyway. In order to
+ensure the best performance you may want to fix the error above.
+"""
+            )
+
 
 setup(
     version=version,
