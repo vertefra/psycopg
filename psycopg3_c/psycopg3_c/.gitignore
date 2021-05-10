@@ -1,4 +1,5 @@
 /*.so
 _psycopg3.c
+pg3dec.c
 pq.c
 *.html

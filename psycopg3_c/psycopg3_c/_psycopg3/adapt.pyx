@@ -31,10 +31,6 @@ logger = logging.getLogger("psycopg3.adapt")
 
 @cython.freelist(8)
 cdef class CDumper:
-    cdef readonly object cls
-    cdef public libpq.Oid oid
-    cdef pq.PGconn _pgconn
-
     def __init__(self, cls, context: Optional[AdaptContext] = None):
         self.cls = cls
         conn = context.connection if context is not None else None
@@ -136,9 +132,6 @@ cdef class CDumper:
 
 @cython.freelist(8)
 cdef class CLoader:
-    cdef public libpq.Oid oid
-    cdef pq.PGconn _pgconn
-
     def __init__(self, int oid, context: Optional[AdaptContext] = None):
         self.oid = oid
         conn = context.connection if context is not None else None

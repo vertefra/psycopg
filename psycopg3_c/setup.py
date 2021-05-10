@@ -26,6 +26,31 @@ with open("psycopg3_c/version.py") as f:
         raise Exception(f"cannot find version in {f.name}")
     version = m.group(1)
 
+# Some details missing, to be finished by psycopg3_build_ext.finalize_options
+ext_modules = [
+    Extension(
+        "psycopg3_c._psycopg3",
+        [
+            "psycopg3_c/_psycopg3.c",
+            "psycopg3_c/types/numutils.c",
+        ],
+        libraries=["pq"],
+        include_dirs=[],
+    ),
+    Extension(
+        "psycopg3_c.pq",
+        ["psycopg3_c/pq.c"],
+        libraries=["pq"],
+        include_dirs=[],
+    ),
+    Extension(
+        "psycopg3_c.pg3dec",
+        ["psycopg3_c/pg3dec.c"],
+        libraries=["mpdec"],
+        include_dirs=[],
+    ),
+]
+
 
 class psycopg3_build_ext(build_ext):
     def finalize_options(self) -> None:
@@ -35,7 +60,7 @@ class psycopg3_build_ext(build_ext):
     def _setup_ext_build(self) -> None:
         cythonize = None
 
-        # In the sdist there are not .pyx, only c, so we don't need Cython
+        # In the sdist there are no .pyx, only c, so we don't need Cython
         # Otherwise Cython is a requirement and is be used to compile pyx to c
         if os.path.exists("psycopg3_c/_psycopg3.pyx"):
             from Cython.Build import cythonize
@@ -69,30 +94,12 @@ class psycopg3_build_ext(build_ext):
                 annotate=False,  # enable to get an html view of the C module
             )
         else:
-            self.distribution.ext_modules = [pgext, pqext]
+            self.distribution.ext_modules = ext_modules
 
-
-# Some details missing, to be finished by psycopg3_build_ext.finalize_options
-pgext = Extension(
-    "psycopg3_c._psycopg3",
-    [
-        "psycopg3_c/_psycopg3.c",
-        "psycopg3_c/types/numutils.c",
-    ],
-    libraries=["pq"],
-    include_dirs=[],
-)
-
-pqext = Extension(
-    "psycopg3_c.pq",
-    ["psycopg3_c/pq.c"],
-    libraries=["pq"],
-    include_dirs=[],
-)
 
 setup(
     version=version,
-    ext_modules=[pgext, pqext],
+    ext_modules=ext_modules,
     cmdclass={"build_ext": psycopg3_build_ext},
     # For some reason pacakge_data doesn't work in setup.cfg
     package_data={

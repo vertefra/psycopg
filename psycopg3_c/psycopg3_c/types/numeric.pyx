@@ -9,7 +9,6 @@ cimport cython
 from libc.stdint cimport *
 from libc.string cimport memcpy, strlen
 from cpython.mem cimport PyMem_Free
-from cpython.ref cimport Py_DECREF
 from cpython.dict cimport PyDict_GetItem, PyDict_SetItem
 from cpython.long cimport (
     PyLong_FromString, PyLong_FromLong, PyLong_FromLongLong,
@@ -24,6 +23,15 @@ from psycopg3_c._psycopg3 cimport endian
 from psycopg3 import errors as e
 
 from psycopg3.wrappers.numeric import Int2, Int4, Int8, IntNumeric
+
+# Objects implemented by a different C extension library but exposed by
+# this extension to Python so that the optimised adapter import machinery
+# can find them. If found it will shadow the class defined here.
+try:
+    from psycopg3_c.pg3dec import DecimalBinaryDumper
+except ImportError:
+    DecimalBinaryDumper = _DecimalBinaryDumper
+
 
 cdef extern from "Python.h":
     # work around https://github.com/cython/cython/issues/3909
@@ -545,7 +553,16 @@ static const int pydigit_weights[] = {1000, 100, 10, 1};
 
 @cython.final
 @cython.cdivision(True)
-cdef class DecimalBinaryDumper(CDumper):
+cdef class _DecimalBinaryDumper(CDumper):
+    """
+    Dump Python Decimal objects to the PostgreSQL binary numeric format.
+
+    This implementation only relies on the Python interface of the Decimal
+    class, so it should be well educated but not the most performing.
+    A more optimised implementation is available in psycopg3_c.pg3dec extension
+    module, however it depends on the mpdec external library so it might not
+    be available everywhere.
+    """
 
     format = PQ_BINARY
 
@@ -553,12 +570,6 @@ cdef class DecimalBinaryDumper(CDumper):
         self.oid = oids.NUMERIC_OID
 
     cdef Py_ssize_t cdump(self, obj, bytearray rv, Py_ssize_t offset) except -1:
-
-        # TODO: this implementation is about 30% slower than the text dump.
-        # This might be probably optimised by accessing the C structure of
-        # the Decimal object, if available, which would save the creation of
-        # several intermediate Python objects (the DecimalTuple, the digits
-        # tuple, and then accessing them).
 
         cdef object t = obj.as_tuple()
         cdef int sign = t[0]
