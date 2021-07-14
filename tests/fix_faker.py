@@ -533,7 +533,7 @@ class Faker:
     def make_Int8Range(self, spec):
         return self.make_Range((spec, Int8))
 
-    def make_NumericRange(self, spec):
+    def make_DecimalRange(self, spec):
         return self.make_Range((spec, Decimal))
 
     def make_DateRange(self, spec):
@@ -560,7 +560,7 @@ class Faker:
     def match_Int8Range(self, spec, got, want):
         return self.match_Range((spec, Int8), got, want)
 
-    def match_NumericRange(self, spec, got, want):
+    def match_DecimalRange(self, spec, got, want):
         return self.match_Range((spec, Decimal), got, want)
 
     def match_DateRange(self, spec, got, want):

@@ -191,7 +191,7 @@ def test_copy_in_empty(conn, min, max, bounds, format):
 @pytest.mark.parametrize("bounds", "() empty".split())
 @pytest.mark.parametrize(
     "wrapper",
-    """Int4Range Int8Range NumericRange
+    """Int4Range Int8Range DecimalRange
        DateRange TimestampRange TimestamptzRange""".split(),
 )
 @pytest.mark.parametrize("format", [pq.Format.TEXT, pq.Format.BINARY])
