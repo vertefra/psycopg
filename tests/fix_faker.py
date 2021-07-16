@@ -539,10 +539,10 @@ class Faker:
     def make_DateRange(self, spec):
         return self.make_Range((spec, dt.date))
 
-    def make_TimestampRange(self, spec):
+    def make_DateTimeRange(self, spec):
         return self.make_Range((spec, (dt.datetime, False)))
 
-    def make_TimestamptzRange(self, spec):
+    def make_DateTimeTZRange(self, spec):
         return self.make_Range((spec, (dt.datetime, True)))
 
     def match_Range(self, spec, got, want):
@@ -566,10 +566,10 @@ class Faker:
     def match_DateRange(self, spec, got, want):
         return self.match_Range((spec, dt.date), got, want)
 
-    def match_TimestampRange(self, spec, got, want):
+    def match_DateTimeRange(self, spec, got, want):
         return self.match_Range((spec, (dt.datetime, False)), got, want)
 
-    def match_TimestamptzRange(self, spec, got, want):
+    def match_DateTimeTZRange(self, spec, got, want):
         return self.match_Range((spec, (dt.datetime, True)), got, want)
 
     def make_str(self, spec, length=0):

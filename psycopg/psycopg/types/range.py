@@ -244,11 +244,11 @@ class DateRange(Range[date]):
     pass
 
 
-class TimestampRange(Range[datetime]):
+class DateTimeRange(Range[datetime]):
     pass
 
 
-class TimestamptzRange(Range[datetime]):
+class DateTimeTZRange(Range[datetime]):
     pass
 
 
@@ -577,14 +577,14 @@ def register_default_adapters(context: AdaptContext) -> None:
     adapters.register_dumper(Int8Range, Int8RangeDumper)
     adapters.register_dumper(DecimalRange, DecimalRangeDumper)
     adapters.register_dumper(DateRange, DateRangeDumper)
-    adapters.register_dumper(TimestampRange, TimestampRangeDumper)
-    adapters.register_dumper(TimestamptzRange, TimestamptzRangeDumper)
+    adapters.register_dumper(DateTimeRange, TimestampRangeDumper)
+    adapters.register_dumper(DateTimeTZRange, TimestamptzRangeDumper)
     adapters.register_dumper(Int4Range, Int4RangeBinaryDumper)
     adapters.register_dumper(Int8Range, Int8RangeBinaryDumper)
     adapters.register_dumper(DecimalRange, DecimalRangeBinaryDumper)
     adapters.register_dumper(DateRange, DateRangeBinaryDumper)
-    adapters.register_dumper(TimestampRange, TimestampRangeBinaryDumper)
-    adapters.register_dumper(TimestamptzRange, TimestamptzRangeBinaryDumper)
+    adapters.register_dumper(DateTimeRange, TimestampRangeBinaryDumper)
+    adapters.register_dumper(DateTimeTZRange, TimestamptzRangeBinaryDumper)
     adapters.register_loader("int4range", Int4RangeLoader)
     adapters.register_loader("int8range", Int8RangeLoader)
     adapters.register_loader("numrange", NumRangeLoader)
