@@ -16,6 +16,7 @@ from . import waiting
 from .pq import Format
 from .abc import Params, PQGen, PQGenConn, Query, RV
 from .rows import Row, AsyncRowFactory, tuple_row, TupleRow
+from ._dns import resolve_hostaddr_async
 from ._enums import IsolationLevel
 from ._compat import asynccontextmanager
 from .conninfo import make_conninfo, conninfo_to_dict
@@ -139,8 +140,7 @@ class AsyncConnection(BaseConnection[Row]):
         else:
             params["connect_timeout"] = None
 
-        # TODO: resolve host names to hostaddr asynchronously
-        # https://github.com/psycopg/psycopg/issues/69
+        await resolve_hostaddr_async(params)
 
         # TODO: SRV lookup (RFC 2782)
         # https://github.com/psycopg/psycopg/issues/70

@@ -4,6 +4,7 @@ import pytest
 import asyncio
 import logging
 import weakref
+from copy import deepcopy
 
 import psycopg
 from psycopg import encodings
@@ -13,6 +14,7 @@ from psycopg.errors import UndefinedTable
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from .utils import gc_collect
+from .test_dns import fake_gethostbyname
 from .test_cursor import my_row_factory
 from .test_connection import tx_params, tx_values_map, conninfo_params_timeout
 
@@ -387,14 +389,42 @@ async def test_set_encoding_bad(aconn):
     [
         ((), {}, ""),
         (("",), {}, ""),
-        (("host=foo user=bar",), {}, "host=foo user=bar"),
-        (("host=foo",), {"user": "baz"}, "host=foo user=baz"),
         (
-            ("host=foo port=5432",),
-            {"host": "qux", "user": "joe"},
-            "host=qux user=joe port=5432",
+            ("host=foo.com user=bar",),
+            {},
+            "host=foo.com user=bar hostaddr=1.1.1.1",
         ),
-        (("host=foo",), {"user": None}, "host=foo"),
+        (
+            ("host=foo.com",),
+            {"user": "baz"},
+            "host=foo.com user=baz hostaddr=1.1.1.1",
+        ),
+        (
+            ("host=foo.com port=5432",),
+            {"host": "qux.com", "user": "joe"},
+            "host=qux.com user=joe port=5432 hostaddr=2.2.2.2",
+        ),
+        (("host=foo.com",), {"user": None}, "host=foo.com hostaddr=1.1.1.1"),
+        (
+            ("host=foo.com,qux.com",),
+            {"port": "5433"},
+            "host=foo.com,qux.com hostaddr=1.1.1.1,2.2.2.2 port=5433",
+        ),
+        (
+            ("host=foo.com,qux.com",),
+            {"port": "5432,5433"},
+            "host=foo.com,qux.com hostaddr=1.1.1.1,2.2.2.2 port=5432,5433",
+        ),
+        (
+            ("host=foo.com,qux.com",),
+            {},
+            "host=foo.com,qux.com hostaddr=1.1.1.1,2.2.2.2",
+        ),
+        (
+            ("host=foo.com,nosuchhost.com",),
+            {},
+            "host=foo.com hostaddr=1.1.1.1",
+        ),
     ],
 )
 async def test_connect_args(monkeypatch, pgconn, args, kwargs, want):
@@ -407,6 +437,7 @@ async def test_connect_args(monkeypatch, pgconn, args, kwargs, want):
         yield
 
     monkeypatch.setattr(psycopg.connection, "connect", fake_connect)
+    monkeypatch.setattr(socket, "gethostbyname", fake_gethostbyname)
     await psycopg.AsyncConnection.connect(*args, **kwargs)
     assert conninfo_to_dict(the_conninfo) == conninfo_to_dict(want)
 
@@ -414,7 +445,7 @@ async def test_connect_args(monkeypatch, pgconn, args, kwargs, want):
 @pytest.mark.parametrize(
     "args, kwargs",
     [
-        (("host=foo", "host=bar"), {}),
+        (("host=foo.com", "host=qux.com"), {}),
         (("", ""), {}),
         ((), {"nosuchparam": 42}),
     ],
@@ -425,7 +456,8 @@ async def test_connect_badargs(monkeypatch, pgconn, args, kwargs):
         yield
 
     monkeypatch.setattr(psycopg.connection, "connect", fake_connect)
-    with pytest.raises((TypeError, psycopg.ProgrammingError)):
+    monkeypatch.setattr(socket, "gethostbyname", fake_gethostbyname)
+    with pytest.raises((TypeError, psycopg.Error)):
         await psycopg.AsyncConnection.connect(*args, **kwargs)
 
 
@@ -711,5 +743,8 @@ async def test_set_transaction_param_strange(aconn):
 async def test_get_connection_params(dsn, kwargs, exp):
     params = await AsyncConnection._get_connection_params(dsn, **kwargs)
     conninfo = make_conninfo(**params)
+    if exp[0].get("host") == "localhost":
+        exp = deepcopy(exp)
+        exp[0]["hostaddr"] = "127.0.0.1"
     assert conninfo_to_dict(conninfo) == exp[0]
     assert params["connect_timeout"] == exp[1]
