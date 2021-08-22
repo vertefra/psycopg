@@ -3,6 +3,7 @@ import string
 import hashlib
 from io import BytesIO, StringIO
 from itertools import cycle
+from collections import Counter
 
 import pytest
 
@@ -573,18 +574,18 @@ async def test_copy_to_leaks(dsn, faker, fmt, method, retries):
                         async for x in copy.rows():
                             pass
 
-    gc_collect()
     async for retry in retries:
         with retry:
-            n = []
+            cs = [Counter() for i in range(3)]
+            gc_collect()
             for i in range(3):
                 await work()
                 gc_collect()
-                n.append(len(gc.get_objects()))
+                cs[i].update(type(obj).__name__ for obj in gc.get_objects())
 
             assert (
-                n[0] == n[1] == n[2]
-            ), f"objects leaked: {n[1] - n[0]}, {n[2] - n[1]}"
+                cs[0] == cs[1] == cs[2]
+            ), f"differences: {cs[1] - cs[0]}, {cs[2] - cs[1]}"
 
 
 @pytest.mark.slow
@@ -615,18 +616,18 @@ async def test_copy_from_leaks(dsn, faker, fmt, retries):
                 for got, want in zip(recs, faker.records):
                     faker.assert_record(got, want)
 
-    gc_collect()
     async for retry in retries:
         with retry:
-            n = []
+            cs = [Counter() for i in range(3)]
+            gc_collect()
             for i in range(3):
                 await work()
                 gc_collect()
-                n.append(len(gc.get_objects()))
+                cs[i].update(type(obj).__name__ for obj in gc.get_objects())
 
             assert (
-                n[0] == n[1] == n[2]
-            ), f"objects leaked: {n[1] - n[0]}, {n[2] - n[1]}"
+                cs[0] == cs[1] == cs[2]
+            ), f"differences: {cs[1] - cs[0]}, {cs[2] - cs[1]}"
 
 
 async def ensure_table(cur, tabledef, name="copy_in"):

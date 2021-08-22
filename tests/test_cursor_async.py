@@ -2,6 +2,7 @@ import gc
 import pytest
 import weakref
 import datetime as dt
+from collections import Counter
 
 import psycopg
 from psycopg import pq, sql, rows
@@ -560,13 +561,13 @@ async def test_leak(dsn, faker, fmt, fmt_out, fetch, row_factory, retries):
 
     async for retry in retries:
         with retry:
-            n = []
+            cs = [Counter() for i in range(3)]
             gc_collect()
             for i in range(3):
                 await work()
                 gc_collect()
-                n.append(len(gc.get_objects()))
+                cs[i].update(type(obj).__name__ for obj in gc.get_objects())
 
             assert (
-                n[0] == n[1] == n[2]
-            ), f"objects leaked: {n[1] - n[0]}, {n[2] - n[1]}"
+                cs[0] == cs[1] == cs[2]
+            ), f"differences: {cs[1] - cs[0]}, {cs[2] - cs[1]}"
