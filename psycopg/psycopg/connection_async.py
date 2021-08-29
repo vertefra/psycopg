@@ -140,7 +140,7 @@ class AsyncConnection(BaseConnection[Row]):
         else:
             params["connect_timeout"] = None
 
-        await resolve_hostaddr_async(params)
+        params = await resolve_hostaddr_async(params)
 
         # TODO: SRV lookup (RFC 2782)
         # https://github.com/psycopg/psycopg/issues/70

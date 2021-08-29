@@ -31,7 +31,7 @@ async def test_resolve_hostaddr_async_no_resolve(monkeypatch, conninfo, want):
     monkeypatch.setattr(socket, "gethostbyname", fake_gethostbyname)
 
     params = conninfo_to_dict(conninfo)
-    await psycopg._dns.resolve_hostaddr_async(params)
+    params = await psycopg._dns.resolve_hostaddr_async(params)
     assert conninfo_to_dict(want) == params
 
 
@@ -65,7 +65,7 @@ async def test_resolve_hostaddr_async(monkeypatch, conninfo, want):
     monkeypatch.setattr(socket, "gethostbyname", fake_gethostbyname)
 
     params = conninfo_to_dict(conninfo)
-    await psycopg._dns.resolve_hostaddr_async(params)
+    params = await psycopg._dns.resolve_hostaddr_async(params)
     assert conninfo_to_dict(want) == params
 
 

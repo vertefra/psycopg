@@ -12,9 +12,9 @@ from . import errors as e
 from ._compat import get_running_loop
 
 
-async def resolve_hostaddr_async(params: Dict[str, Any]) -> None:
+async def resolve_hostaddr_async(params: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Change the *params* dict inplace performing async DNS lookup of the hosts
+    Perform async DNS lookup of the hosts and return a new params dict.
 
     If a ``host`` param is present but not ``hostname``, resolve the host
     addresses dynamically.
@@ -31,17 +31,17 @@ async def resolve_hostaddr_async(params: Dict[str, Any]) -> None:
     entries.
     """
     if params.get("hostaddr") or not params.get("host"):
-        return
+        return params
 
     if pq.version() < 100000:
         # hostaddr not supported
-        return
+        return params
 
     host = params["host"]
 
     if host.startswith("/") or host[1:2] == ":":
         # Local path
-        return
+        return params
 
     hosts_in = host.split(",")
     ports_in = str(params["port"]).split(",") if params.get("port") else []
@@ -77,7 +77,10 @@ async def resolve_hostaddr_async(params: Dict[str, Any]) -> None:
     if not hosts_out:
         raise e.OperationalError(str(last_exc))
 
-    params["host"] = ",".join(hosts_out)
-    params["hostaddr"] = ",".join(hostaddr_out)
+    # Return an updated params dict
+    out = params.copy()
+    out["host"] = ",".join(hosts_out)
+    out["hostaddr"] = ",".join(hostaddr_out)
     if ports_in:
-        params["port"] = ",".join(ports_out)
+        out["port"] = ",".join(ports_out)
+    return out
