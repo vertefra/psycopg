@@ -34,7 +34,7 @@ jobs:
           - {impl: c, python: "3.9", postgres: "postgres:12", libpq: ""}
           - {impl: c, python: "3.10", postgres: "postgres:10", libpq: "oldest"}
           - {impl: dns, python: "3.9", postgres: "postgres:14", libpq: ""}
-          - {impl: postgis, python: "3.9", postgres: "postgis/postgis", libpq: ""}
+          - {impl: postgis, python: "3.8", postgres: "postgis/postgis", libpq: ""}
 
     env:
       PSYCOPG_IMPL: ${{ matrix.impl }}
@@ -42,7 +42,7 @@ jobs:
       PGPASSWORD: password
       PYTEST_ADDOPTS: --color yes
       # Enable to run tests using the minumum version of dependencies.
-      # PIP_CONSTRAINT: ${{ github.workspace }}/tests/constraints.txt
+      PIP_CONSTRAINT: ${{ github.workspace }}/tests/constraints.txt
 
     steps:
       - uses: actions/checkout@v2
@@ -137,7 +137,7 @@ jobs:
       # Don't run timing-based tests as they regularly fail.
       # pproxy-based tests fail too, with the proxy not coming up in 2s.
       PYTEST_ADDOPTS: -m 'not timing and not proxy and not mypy' --color yes
-      # PIP_CONSTRAINT: ${{ github.workspace }}/tests/constraints.txt
+      PIP_CONSTRAINT: ${{ github.workspace }}/tests/constraints.txt
 
     steps:
       - uses: actions/checkout@v2
@@ -187,7 +187,7 @@ jobs:
       PSYCOPG_TEST_DSN: "host=127.0.0.1 dbname=postgres"
       # On windows pproxy doesn't seem very happy. Also a few timing test fail.
       PYTEST_ADDOPTS: -m 'not timing and not proxy and not mypy' --color yes
-      # PIP_CONSTRAINT: ${{ github.workspace }}/tests/constraints.txt
+      PIP_CONSTRAINT: ${{ github.workspace }}/tests/constraints.txt
 
     steps:
       - uses: actions/checkout@v2
