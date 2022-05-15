@@ -23,18 +23,21 @@ jobs:
       matrix:
         include:
           # Test different combinations of Python, Postgres, libpq.
-          - {impl: python, python: "3.6", postgres: "postgres:10", libpq: "newest"}
-          - {impl: python, python: "3.7", postgres: "postgres:11", libpq: ""}
-          - {impl: python, python: "3.8", postgres: "postgres:12", libpq: ""}
-          - {impl: python, python: "3.9", postgres: "postgres:13", libpq: "newest"}
-          - {impl: python, python: "3.10", postgres: "postgres:14", libpq: "oldest"}
-          - {impl: c, python: "3.6", postgres: "postgres:14", libpq: "oldest"}
-          - {impl: c, python: "3.7", postgres: "postgres:13", libpq: ""}
-          - {impl: c, python: "3.8", postgres: "postgres:12", libpq: "newest"}
-          - {impl: c, python: "3.9", postgres: "postgres:11", libpq: ""}
-          - {impl: c, python: "3.10", postgres: "postgres:10", libpq: "oldest"}
-          - {impl: dns, python: "3.9", postgres: "postgres:14", libpq: ""}
-          - {impl: postgis, python: "3.9", postgres: "postgis/postgis", libpq: ""}
+          # NOMERGE
+          # - {impl: python, python: "3.6", postgres: "postgres:10", libpq: "newest"}
+          # - {impl: python, python: "3.7", postgres: "postgres:11", libpq: ""}
+          # - {impl: python, python: "3.8", postgres: "postgres:12", libpq: ""}
+          # - {impl: python, python: "3.9", postgres: "postgres:13", libpq: ""}
+          # - {impl: python, python: "3.10", postgres: "postgres:14", libpq: "newest"}
+          - {impl: python, python: "3.11", postgres: "postgres:14", libpq: "oldest"}
+          # - {impl: c, python: "3.6", postgres: "postgres:14", libpq: "oldest"}
+          # - {impl: c, python: "3.7", postgres: "postgres:13", libpq: ""}
+          # - {impl: c, python: "3.8", postgres: "postgres:12", libpq: "newest"}
+          # - {impl: c, python: "3.9", postgres: "postgres:11", libpq: ""}
+          # - {impl: c, python: "3.10", postgres: "postgres:10", libpq: "oldest"}
+          - {impl: c, python: "3.11", postgres: "postgres:14", libpq: "newest"}
+          # - {impl: dns, python: "3.9", postgres: "postgres:14", libpq: ""}
+          # - {impl: postgis, python: "3.9", postgres: "postgis/postgis", libpq: ""}
 
     env:
       PSYCOPG_IMPL: ${{ matrix.impl }}
@@ -45,11 +48,17 @@ jobs:
       # PIP_CONSTRAINT: ${{ github.workspace }}/tests/constraints.txt
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python }}
+        if: ${{ matrix.python != '3.11' }}
+
+      - uses: actions/setup-python@v3
+        with:
+          python-version: "3.11.0-beta.1"
+        if: ${{ matrix.python == '3.11' }}
 
       - name: Install the newest libpq version available
         if: ${{ matrix.libpq == 'newest' }}
@@ -121,16 +130,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {impl: python, python: "3.6"}
-          - {impl: python, python: "3.7"}
-          - {impl: python, python: "3.8"}
-          - {impl: python, python: "3.9"}
-          - {impl: python, python: "3.10"}
-          - {impl: c, python: "3.6"}
-          - {impl: c, python: "3.7"}
-          - {impl: c, python: "3.8"}
-          - {impl: c, python: "3.9"}
-          - {impl: c, python: "3.10"}
+          # NOMERGE
+          # - {impl: python, python: "3.6"}
+          # - {impl: python, python: "3.7"}
+          # - {impl: python, python: "3.8"}
+          # - {impl: python, python: "3.9"}
+          # - {impl: python, python: "3.10"}
+          - {impl: python, python: "3.11"}
+          # - {impl: c, python: "3.6"}
+          # - {impl: c, python: "3.7"}
+          # - {impl: c, python: "3.8"}
+          # - {impl: c, python: "3.9"}
+          # - {impl: c, python: "3.10"}
+          - {impl: c, python: "3.11"}
 
     env:
       PSYCOPG_IMPL: ${{ matrix.impl }}
@@ -142,7 +154,7 @@ jobs:
       # PIP_CONSTRAINT: ${{ github.workspace }}/tests/constraints.txt
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install PostgreSQL on the runner
         run: brew install postgresql@14
@@ -150,9 +162,15 @@ jobs:
       - name: Start PostgreSQL service for test
         run: brew services start postgresql
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python }}
+        if: ${{ matrix.python != '3.11' }}
+
+      - uses: actions/setup-python@v3
+        with:
+          python-version: "3.11.0-beta.1"
+        if: ${{ matrix.python == '3.11' }}
 
       - name: Install tox
         run: pip install tox
@@ -175,16 +193,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {impl: python, python: "3.6"}
-          - {impl: python, python: "3.7"}
-          - {impl: python, python: "3.8"}
-          - {impl: python, python: "3.9"}
-          - {impl: python, python: "3.10"}
-          - {impl: c, python: "3.6"}
-          - {impl: c, python: "3.7"}
-          - {impl: c, python: "3.8"}
-          - {impl: c, python: "3.9"}
-          - {impl: c, python: "3.10"}
+          # NOMERGE
+          # - {impl: python, python: "3.6"}
+          # - {impl: python, python: "3.7"}
+          # - {impl: python, python: "3.8"}
+          # - {impl: python, python: "3.9"}
+          # - {impl: python, python: "3.10"}
+          - {impl: python, python: "3.11"}
+          # - {impl: c, python: "3.6"}
+          # - {impl: c, python: "3.7"}
+          # - {impl: c, python: "3.8"}
+          # - {impl: c, python: "3.9"}
+          # - {impl: c, python: "3.10"}
+          - {impl: c, python: "3.11"}
 
     env:
       PSYCOPG_IMPL: ${{ matrix.impl }}
@@ -194,7 +215,7 @@ jobs:
       # PIP_CONSTRAINT: ${{ github.workspace }}/tests/constraints.txt
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Start PostgreSQL service for test
         run: |
@@ -202,9 +223,15 @@ jobs:
           Set-Service $PgSvc.Name -StartupType manual
           $PgSvc.Start()
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python }}
+        if: ${{ matrix.python != '3.11' }}
+
+      - uses: actions/setup-python@v3
+        with:
+          python-version: "3.11.0-beta.1"
+        if: ${{ matrix.python == '3.11' }}
 
       - name: Install tox
         run: pip install tox wheel
