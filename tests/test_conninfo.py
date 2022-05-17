@@ -298,3 +298,6 @@ class TestConnectionInfo:
         cur.execute("set client_encoding to EUC_TW")
         with pytest.raises(psycopg.NotSupportedError):
             cur.execute("select 'x'")
+
+    def test_vendor(self, conn):
+        assert conn.info.vendor
