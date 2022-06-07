@@ -5,7 +5,7 @@ import weakref
 from typing import List, Any
 
 import psycopg
-from psycopg import AsyncConnection, Notify, errors as e
+from psycopg import Notify, errors as e
 from psycopg.rows import tuple_row
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
@@ -19,23 +19,23 @@ from .test_adapt import make_bin_dumper, make_dumper
 pytestmark = pytest.mark.asyncio
 
 
-async def test_connect(dsn):
-    conn = await AsyncConnection.connect(dsn)
+async def test_connect(aconn_cls, dsn):
+    conn = await aconn_cls.connect(dsn)
     assert not conn.closed
     assert conn.pgconn.status == conn.ConnStatus.OK
     await conn.close()
 
 
-async def test_connect_bad():
+async def test_connect_bad(aconn_cls):
     with pytest.raises(psycopg.OperationalError):
-        await AsyncConnection.connect("dbname=nosuchdb")
+        await aconn_cls.connect("dbname=nosuchdb")
 
 
-async def test_connect_str_subclass(dsn):
+async def test_connect_str_subclass(aconn_cls, dsn):
     class MyString(str):
         pass
 
-    conn = await AsyncConnection.connect(MyString(dsn))
+    conn = await aconn_cls.connect(MyString(dsn))
     assert not conn.closed
     assert conn.pgconn.status == conn.ConnStatus.OK
     await conn.close()
@@ -43,12 +43,10 @@ async def test_connect_str_subclass(dsn):
 
 @pytest.mark.slow
 @pytest.mark.timing
-async def test_connect_timeout(deaf_port):
+async def test_connect_timeout(aconn_cls, deaf_port):
     t0 = time.time()
     with pytest.raises(psycopg.OperationalError, match="timeout expired"):
-        await AsyncConnection.connect(
-            host="localhost", port=deaf_port, connect_timeout=1
-        )
+        await aconn_cls.connect(host="localhost", port=deaf_port, connect_timeout=1)
     elapsed = time.time() - t0
     assert elapsed == pytest.approx(1.0, abs=0.05)
 
@@ -95,22 +93,22 @@ async def test_cursor_closed(aconn):
         aconn.cursor()
 
 
-async def test_connection_warn_close(dsn, recwarn):
-    conn = await AsyncConnection.connect(dsn)
+async def test_connection_warn_close(aconn_cls, dsn, recwarn):
+    conn = await aconn_cls.connect(dsn)
     await conn.close()
     del conn
     assert not recwarn, [str(w.message) for w in recwarn.list]
 
-    conn = await AsyncConnection.connect(dsn)
+    conn = await aconn_cls.connect(dsn)
     del conn
     assert "IDLE" in str(recwarn.pop(ResourceWarning).message)
 
-    conn = await AsyncConnection.connect(dsn)
+    conn = await aconn_cls.connect(dsn)
     await conn.execute("select 1")
     del conn
     assert "INTRANS" in str(recwarn.pop(ResourceWarning).message)
 
-    conn = await AsyncConnection.connect(dsn)
+    conn = await aconn_cls.connect(dsn)
     try:
         await conn.execute("select wat")
     except Exception:
@@ -118,14 +116,14 @@ async def test_connection_warn_close(dsn, recwarn):
     del conn
     assert "INERROR" in str(recwarn.pop(ResourceWarning).message)
 
-    async with await AsyncConnection.connect(dsn) as conn:
+    async with await aconn_cls.connect(dsn) as conn:
         pass
     del conn
     assert not recwarn, [str(w.message) for w in recwarn.list]
 
 
 @pytest.mark.usefixtures("testctx")
-async def test_context_commit(aconn, dsn):
+async def test_context_commit(aconn_cls, aconn, dsn):
     async with aconn:
         async with aconn.cursor() as cur:
             await cur.execute("insert into testctx values (42)")
@@ -133,14 +131,14 @@ async def test_context_commit(aconn, dsn):
     assert aconn.closed
     assert not aconn.broken
 
-    async with await psycopg.AsyncConnection.connect(dsn) as aconn:
+    async with await aconn_cls.connect(dsn) as aconn:
         async with aconn.cursor() as cur:
             await cur.execute("select * from testctx")
             assert await cur.fetchall() == [(42,)]
 
 
 @pytest.mark.usefixtures("testctx")
-async def test_context_rollback(aconn, dsn):
+async def test_context_rollback(aconn_cls, aconn, dsn):
     with pytest.raises(ZeroDivisionError):
         async with aconn:
             async with aconn.cursor() as cur:
@@ -150,7 +148,7 @@ async def test_context_rollback(aconn, dsn):
     assert aconn.closed
     assert not aconn.broken
 
-    async with await psycopg.AsyncConnection.connect(dsn) as aconn:
+    async with await aconn_cls.connect(dsn) as aconn:
         async with aconn.cursor() as cur:
             await cur.execute("select * from testctx")
             assert await cur.fetchall() == []
@@ -163,9 +161,9 @@ async def test_context_close(aconn):
 
 
 @pytest.mark.crdb("skip", reason="pg_terminate_backend")
-async def test_context_inerror_rollback_no_clobber(conn, dsn, caplog):
+async def test_context_inerror_rollback_no_clobber(aconn_cls, conn, dsn, caplog):
     with pytest.raises(ZeroDivisionError):
-        async with await psycopg.AsyncConnection.connect(dsn) as conn2:
+        async with await aconn_cls.connect(dsn) as conn2:
             await conn2.execute("select 1")
             conn.execute(
                 "select pg_terminate_backend(%s::int)",
@@ -180,11 +178,11 @@ async def test_context_inerror_rollback_no_clobber(conn, dsn, caplog):
 
 
 @pytest.mark.crdb("skip", reason="copy")
-async def test_context_active_rollback_no_clobber(dsn, caplog):
+async def test_context_active_rollback_no_clobber(aconn_cls, dsn, caplog):
     caplog.set_level(logging.WARNING, logger="psycopg")
 
     with pytest.raises(ZeroDivisionError):
-        async with await psycopg.AsyncConnection.connect(dsn) as conn:
+        async with await aconn_cls.connect(dsn) as conn:
             conn.pgconn.exec_(b"copy (select generate_series(1, 10)) to stdout")
             assert not conn.pgconn.error_message
             status = conn.info.transaction_status
@@ -198,8 +196,8 @@ async def test_context_active_rollback_no_clobber(dsn, caplog):
 
 
 @pytest.mark.slow
-async def test_weakref(dsn):
-    conn = await psycopg.AsyncConnection.connect(dsn)
+async def test_weakref(aconn_cls, dsn):
+    conn = await aconn_cls.connect(dsn)
     w = weakref.ref(conn)
     await conn.close()
     del conn
@@ -316,8 +314,8 @@ async def test_autocommit(aconn):
     assert aconn.autocommit is True
 
 
-async def test_autocommit_connect(dsn):
-    aconn = await psycopg.AsyncConnection.connect(dsn, autocommit=True)
+async def test_autocommit_connect(aconn_cls, dsn):
+    aconn = await aconn_cls.connect(dsn, autocommit=True)
     assert aconn.autocommit
     await aconn.close()
 
@@ -365,7 +363,7 @@ async def test_autocommit_unknown(aconn):
         (("host=foo",), {"user": None}, "host=foo"),
     ],
 )
-async def test_connect_args(monkeypatch, pgconn, args, kwargs, want):
+async def test_connect_args(aconn_cls, monkeypatch, pgconn, args, kwargs, want):
     the_conninfo: str
 
     def fake_connect(conninfo):
@@ -375,7 +373,7 @@ async def test_connect_args(monkeypatch, pgconn, args, kwargs, want):
         yield
 
     monkeypatch.setattr(psycopg.connection, "connect", fake_connect)
-    conn = await psycopg.AsyncConnection.connect(*args, **kwargs)
+    conn = await aconn_cls.connect(*args, **kwargs)
     assert conninfo_to_dict(the_conninfo) == conninfo_to_dict(want)
     await conn.close()
 
@@ -388,14 +386,14 @@ async def test_connect_args(monkeypatch, pgconn, args, kwargs, want):
         ((), {"nosuchparam": 42}, psycopg.ProgrammingError),
     ],
 )
-async def test_connect_badargs(monkeypatch, pgconn, args, kwargs, exctype):
+async def test_connect_badargs(aconn_cls, monkeypatch, pgconn, args, kwargs, exctype):
     def fake_connect(conninfo):
         return pgconn
         yield
 
     monkeypatch.setattr(psycopg.connection, "connect", fake_connect)
     with pytest.raises(exctype):
-        await psycopg.AsyncConnection.connect(*args, **kwargs)
+        await aconn_cls.connect(*args, **kwargs)
 
 
 @pytest.mark.crdb("skip", reason="pg_terminate_backend")
@@ -510,13 +508,13 @@ async def test_execute_binary(aconn):
     assert cur.pgresult.fformat(0) == 1
 
 
-async def test_row_factory(dsn):
-    defaultconn = await AsyncConnection.connect(dsn)
-    assert defaultconn.row_factory is tuple_row  # type: ignore[comparison-overlap]
+async def test_row_factory(aconn_cls, dsn):
+    defaultconn = await aconn_cls.connect(dsn)
+    assert defaultconn.row_factory is tuple_row
     await defaultconn.close()
 
-    conn = await AsyncConnection.connect(dsn, row_factory=my_row_factory)
-    assert conn.row_factory is my_row_factory  # type: ignore[comparison-overlap]
+    conn = await aconn_cls.connect(dsn, row_factory=my_row_factory)
+    assert conn.row_factory is my_row_factory
 
     cur = await conn.execute("select 'a' as ve")
     assert await cur.fetchone() == ["Ave"]
@@ -530,10 +528,10 @@ async def test_row_factory(dsn):
         assert await cur2.fetchall() == [(1, 1, 2)]
 
     # TODO: maybe fix something to get rid of 'type: ignore' below.
-    conn.row_factory = tuple_row  # type: ignore[assignment]
+    conn.row_factory = tuple_row
     cur3 = await conn.execute("select 'vale'")
     r = await cur3.fetchone()
-    assert r and r == ("vale",)  # type: ignore[comparison-overlap]
+    assert r and r == ("vale",)
     await conn.close()
 
 
@@ -564,13 +562,11 @@ async def test_cursor_factory(aconn):
         assert isinstance(cur, MyCursor)
 
 
-async def test_cursor_factory_connect(dsn):
+async def test_cursor_factory_connect(aconn_cls, dsn):
     class MyCursor(psycopg.AsyncCursor[psycopg.rows.Row]):
         pass
 
-    async with await psycopg.AsyncConnection.connect(
-        dsn, cursor_factory=MyCursor
-    ) as conn:
+    async with await aconn_cls.connect(dsn, cursor_factory=MyCursor) as conn:
         assert conn.cursor_factory is MyCursor
         cur = conn.cursor()
         assert type(cur) is MyCursor
@@ -694,37 +690,37 @@ async def test_set_transaction_param_strange(aconn):
 
 
 @pytest.mark.parametrize("dsn, kwargs, exp", conninfo_params_timeout)
-async def test_get_connection_params(dsn, kwargs, exp):
-    params = await AsyncConnection._get_connection_params(dsn, **kwargs)
+async def test_get_connection_params(aconn_cls, dsn, kwargs, exp):
+    params = await aconn_cls._get_connection_params(dsn, **kwargs)
     conninfo = make_conninfo(**params)
     assert conninfo_to_dict(conninfo) == exp[0]
     assert params["connect_timeout"] == exp[1]
 
 
-async def test_connect_context_adapters(dsn):
+async def test_connect_context_adapters(aconn_cls, dsn):
     ctx = psycopg.adapt.AdaptersMap(psycopg.adapters)
     ctx.register_dumper(str, make_bin_dumper("b"))
     ctx.register_dumper(str, make_dumper("t"))
 
-    conn = await psycopg.AsyncConnection.connect(dsn, context=ctx)
+    conn = await aconn_cls.connect(dsn, context=ctx)
 
     cur = await conn.execute("select %s", ["hello"])
-    assert (await cur.fetchone())[0] == "hellot"  # type: ignore[index]
+    assert (await cur.fetchone())[0] == "hellot"
     cur = await conn.execute("select %b", ["hello"])
-    assert (await cur.fetchone())[0] == "hellob"  # type: ignore[index]
+    assert (await cur.fetchone())[0] == "hellob"
     await conn.close()
 
 
-async def test_connect_context_copy(dsn, aconn):
+async def test_connect_context_copy(aconn_cls, dsn, aconn):
     aconn.adapters.register_dumper(str, make_bin_dumper("b"))
     aconn.adapters.register_dumper(str, make_dumper("t"))
 
-    aconn2 = await psycopg.AsyncConnection.connect(dsn, context=aconn)
+    aconn2 = await aconn_cls.connect(dsn, context=aconn)
 
     cur = await aconn2.execute("select %s", ["hello"])
-    assert (await cur.fetchone())[0] == "hellot"  # type: ignore[index]
+    assert (await cur.fetchone())[0] == "hellot"
     cur = await aconn2.execute("select %b", ["hello"])
-    assert (await cur.fetchone())[0] == "hellob"  # type: ignore[index]
+    assert (await cur.fetchone())[0] == "hellob"
     await aconn2.close()
 
 
