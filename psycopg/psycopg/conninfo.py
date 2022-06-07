@@ -121,6 +121,7 @@ class ConnectionInfo:
 
     @property
     def vendor(self) -> str:
+        """A string representing the database vendor connected to."""
         return "PostgreSQL"
 
     @property
